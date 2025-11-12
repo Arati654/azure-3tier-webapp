@@ -9,8 +9,8 @@ pr:
       - main
 
 variables:
-  azureServiceConnection: 'AzureSP'   # Name of your Azure DevOps service connection
-  tfWorkingDir: '.'                    # Path to Terraform code
+  azureServiceConnection: 'AzureSP'   # Your Azure DevOps service connection
+  tfWorkingDir: '.'                    # Terraform code folder
   backendResourceGroup: 'tfstate-rg'
   backendStorageAccount: 'tfstateaccountarati'
   backendContainer: 'tfstate'
@@ -45,7 +45,7 @@ stages:
               sudo mv terraform /usr/local/bin/
               terraform version
 
-        # Clean Terraform cache
+        # Clean Terraform cache to avoid corrupted modules
         - script: |
             rm -rf .terraform .terraform.lock.hcl
           displayName: 'Clean Terraform cache'
@@ -64,6 +64,7 @@ stages:
             backendAzureRmStorageAccountName: '$(backendStorageAccount)'
             backendAzureRmContainerName: '$(backendContainer)'
             backendAzureRmKey: '$(backendKey)'
+            environmentServiceNameAzureRM: '$(azureServiceConnection)'
 
         # Terraform Format check
         - task: TerraformCLI@1
@@ -85,7 +86,7 @@ stages:
 
 # ------------------- CD Stage -------------------
 - stage: Deploy
-  displayName: 'Terraform CD: Apply to Azure'
+  displayName: 'Terraform CD: Plan & Apply'
   dependsOn: Validate
   condition: succeeded()
   jobs:
@@ -130,6 +131,7 @@ stages:
                   backendAzureRmStorageAccountName: '$(backendStorageAccount)'
                   backendAzureRmContainerName: '$(backendContainer)'
                   backendAzureRmKey: '$(backendKey)'
+                  environmentServiceNameAzureRM: '$(azureServiceConnection)'
 
               # Terraform Plan
               - task: TerraformCLI@1
@@ -150,4 +152,3 @@ stages:
                   workingDirectory: '$(tfWorkingDir)'
                   environmentServiceNameAzureRM: '$(azureServiceConnection)'
                   arguments: '-auto-approve tfplan -var "rg_name=$(rg_name)" -var "location=$(location)" -var "location_short=$(location_short)"'
-
