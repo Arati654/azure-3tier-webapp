@@ -16,7 +16,7 @@ variables:
   backendContainer: 'tfstate'
   backendKey: 'infra.terraform.tfstate'
 
-  # Map your existing Terraform variables
+  # Terraform variables
   rg_name: 'rg-enterprise-app'
   location: 'canadacentral'
   location_short: 'ccan'
@@ -45,7 +45,7 @@ stages:
               sudo mv terraform /usr/local/bin/
               terraform version
 
-        # Clean Terraform cache to avoid corrupted modules
+        # Clean Terraform cache
         - script: |
             rm -rf .terraform .terraform.lock.hcl
           displayName: 'Clean Terraform cache'
@@ -64,7 +64,6 @@ stages:
             backendAzureRmStorageAccountName: '$(backendStorageAccount)'
             backendAzureRmContainerName: '$(backendContainer)'
             backendAzureRmKey: '$(backendKey)'
-            environmentServiceNameAzureRM: '$(azureServiceConnection)'
 
         # Terraform Format check
         - task: TerraformCLI@1
@@ -131,7 +130,6 @@ stages:
                   backendAzureRmStorageAccountName: '$(backendStorageAccount)'
                   backendAzureRmContainerName: '$(backendContainer)'
                   backendAzureRmKey: '$(backendKey)'
-                  environmentServiceNameAzureRM: '$(azureServiceConnection)'
 
               # Terraform Plan
               - task: TerraformCLI@1
@@ -140,7 +138,6 @@ stages:
                   provider: 'azurerm'
                   command: 'plan'
                   workingDirectory: '$(tfWorkingDir)'
-                  environmentServiceNameAzureRM: '$(azureServiceConnection)'
                   arguments: '-var "rg_name=$(rg_name)" -var "location=$(location)" -var "location_short=$(location_short)" -out=tfplan'
 
               # Terraform Apply
@@ -150,5 +147,4 @@ stages:
                   provider: 'azurerm'
                   command: 'apply'
                   workingDirectory: '$(tfWorkingDir)'
-                  environmentServiceNameAzureRM: '$(azureServiceConnection)'
                   arguments: '-auto-approve tfplan -var "rg_name=$(rg_name)" -var "location=$(location)" -var "location_short=$(location_short)"'
