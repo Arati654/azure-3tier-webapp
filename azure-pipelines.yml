@@ -9,12 +9,17 @@ pr:
       - main
 
 variables:
-  azureServiceConnection: 'AzureSP'   # Name of your Azure DevOps service connection
-  tfWorkingDir: '.'                    # Path to your Terraform code
+  azureServiceConnection: 'AzureSP'   # Your Azure DevOps service connection
+  tfWorkingDir: '.'                    # Terraform code folder
   backendResourceGroup: 'tfstate-rg'
   backendStorageAccount: 'tfstateaccountarati'
   backendContainer: 'tfstate'
   backendKey: 'infra.terraform.tfstate'
+
+  # Terraform variables
+  rg_name: 'rg-enterprise-app'
+  location: 'canadacentral'
+  location_short: 'ccan'
 
 stages:
 
@@ -30,10 +35,20 @@ stages:
         - checkout: self
 
         # Install Terraform
-        - task: TerraformInstaller@1
-          displayName: 'Install Terraform'
+        - task: Bash@3
+          displayName: 'Install Terraform 1.3.9'
           inputs:
-            terraformVersion: '1.3.9'
+            targetType: 'inline'
+            script: |
+              curl -sSL https://releases.hashicorp.com/terraform/1.3.9/terraform_1.3.9_linux_amd64.zip -o terraform.zip
+              unzip terraform.zip
+              sudo mv terraform /usr/local/bin/
+              terraform version
+
+        # Clean Terraform cache
+        - script: |
+            rm -rf .terraform .terraform.lock.hcl
+          displayName: 'Clean Terraform cache'
 
         # Terraform Init
         - task: TerraformCLI@1
@@ -66,10 +81,11 @@ stages:
             provider: 'azurerm'
             command: 'validate'
             workingDirectory: '$(tfWorkingDir)'
+            arguments: '-var "rg_name=$(rg_name)" -var "location=$(location)" -var "location_short=$(location_short)"'
 
 # ------------------- CD Stage -------------------
 - stage: Deploy
-  displayName: 'Terraform CD: Apply to Azure'
+  displayName: 'Terraform CD: Plan & Apply'
   dependsOn: Validate
   condition: succeeded()
   jobs:
@@ -85,10 +101,20 @@ stages:
               - checkout: self
 
               # Install Terraform
-              - task: TerraformInstaller@1
-                displayName: 'Install Terraform'
+              - task: Bash@3
+                displayName: 'Install Terraform 1.3.9'
                 inputs:
-                  terraformVersion: '1.3.9'
+                  targetType: 'inline'
+                  script: |
+                    curl -sSL https://releases.hashicorp.com/terraform/1.3.9/terraform_1.3.9_linux_amd64.zip -o terraform.zip
+                    unzip terraform.zip
+                    sudo mv terraform /usr/local/bin/
+                    terraform version
+
+              # Clean Terraform cache
+              - script: |
+                  rm -rf .terraform .terraform.lock.hcl
+                displayName: 'Clean Terraform cache'
 
               # Terraform Init
               - task: TerraformCLI@1
@@ -112,8 +138,7 @@ stages:
                   provider: 'azurerm'
                   command: 'plan'
                   workingDirectory: '$(tfWorkingDir)'
-                  environmentServiceNameAzureRM: '$(azureServiceConnection)'
-                  arguments: '-out=tfplan'
+                  arguments: '-var "rg_name=$(rg_name)" -var "location=$(location)" -var "location_short=$(location_short)" -out=tfplan'
 
               # Terraform Apply
               - task: TerraformCLI@1
@@ -122,5 +147,4 @@ stages:
                   provider: 'azurerm'
                   command: 'apply'
                   workingDirectory: '$(tfWorkingDir)'
-                  environmentServiceNameAzureRM: '$(azureServiceConnection)'
-                  arguments: '-auto-approve tfplan'
+                  arguments: '-auto-approve tfplan -var "rg_name=$(rg_name)" -var "location=$(location)" -var "location_short=$(location_short)"'
