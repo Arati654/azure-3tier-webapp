@@ -166,12 +166,12 @@ module "web_lb" {
   depends_on = [azurerm_resource_group.rgname]
 }
 
-module "app-service" {
+/*module "app-service" {
   source  = "claranet/app-service/azurerm"
   version = "8.3.1"
    client_name           = "arati"
    environment           = "dev"
-  location              = azurerm_resource_group.rgname.location
+  location              = var.location
   location_short        = var.location_short
   logs_destinations_ids = []
   os_type               = "Linux"
@@ -196,7 +196,7 @@ module "app-service" {
   extra_tags = {
     project = "EnterpriseWebApp"
     }
-}
+} */
 
 module "database" {
   source              = "./modules/database"
