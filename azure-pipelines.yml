@@ -1,0 +1,56 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pr:
+  branches:
+    include:
+      - main
+
+variables:
+  azureServiceConnection: 'AzureSP'
+  tfWorkingDir: '.'        # location of your main Terraform code
+  backendResourceGroup: 'tfstate-rg'
+  backendStorageAccount: 'tfstateaccountarati'
+  backendContainer: 'tfstate'
+  backendKey: 'infra.terraform.tfstate'
+
+stages:
+# ------------------- CI Stage -------------------
+- stage: Validate
+  displayName: 'Terraform Validation'
+  jobs:
+    - job: Terraform_Validate
+      displayName: 'Terraform Format & Validate'
+      pool:
+        vmImage: 'ubuntu-latest'
+      steps:
+        - checkout: self
+
+        - task: UsePythonVersion@0
+          inputs:
+            versionSpec: '3.x'
+            addToPath: true
+
+        - task: TerraformInstaller@1
+          inputs:
+            terraformVersion: '1.3.9'
+
+        - script: |
+            terraform init -backend-config="resource_group_name=$(backendResourceGroup)" \
+                           -backend-config="storage_account_name=$(backendStorageAccount)" \
+                           -backend-config="container_name=$(backendContainer)" \
+                           -backend-config="key=$(backendKey)" \
+              working-directory=$(tfWorkingDir)
+          displayName: 'Terraform Init'
+
+        - script: |
+            terraform fmt -check -recursive
+          displayName: 'Terraform Format Check'
+
+        - script: |
+            terraform validate
+          displayName: 'Terraform Validate'
+
+# ------------------- CD Stage -------------------
